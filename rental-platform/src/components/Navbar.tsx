@@ -1,15 +1,47 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+
+interface UserInfo {
+  fullName: string;
+  email: string;
+}
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [user, setUser] = useState<UserInfo | null>(null);
+
+  // Check user auth state
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const res = await fetch("/api/auth/verify");
+        const data = await res.json();
+        if (data.authenticated && data.user) {
+          setUser(data.user);
+        } else {
+          setUser(null);
+        }
+      } catch (err) {
+        setUser(null);
+      }
+    }
+    checkAuth();
+  }, [pathname]); // Check auth status on route changes
+
+  // Hide public navbar on Admin routes
+  if (pathname && pathname.startsWith("/admin")) {
+    return null;
+  }
 
   // Array representing the active pages on our website
   const navLinks = [
     { name: "Home", href: "/" },
     { name: "Listings", href: "/listings" },
+    { name: "About Us", href: "/about" },
     { name: "Apply to Rent", href: "/apply" },
     { name: "Help & Support", href: "/help" },
   ];
@@ -19,7 +51,7 @@ export default function Navbar() {
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-90">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md shadow-amber-100">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -31,7 +63,7 @@ export default function Navbar() {
             </svg>
           </div>
           <span className="text-xl font-bold tracking-tight text-zinc-950">
-            Rent<span className="bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">ora</span>
+            Rent<span className="text-orange-500">ora</span>
           </span>
         </Link>
 
@@ -59,12 +91,40 @@ export default function Navbar() {
 
         {/* Actions */}
         <div className="flex items-center gap-4">
-          <Link
-            href="/apply"
-            className="rounded-full bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition-all hover:bg-zinc-800 hover:shadow-md active:scale-95"
-          >
-            Apply Now
-          </Link>
+          {user ? (
+            <div className="flex items-center gap-4">
+              <Link
+                key="/profile"
+                href="/profile"
+                className={`text-sm font-semibold transition-colors hidden sm:inline-block ${
+                  pathname === "/profile" ? "text-amber-500 font-bold" : "text-zinc-600 hover:text-zinc-950"
+                }`}
+              >
+                My Profile
+              </Link>
+              <Link
+                href="/apply"
+                className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition-all hover:bg-zinc-800 hover:shadow-md active:scale-95 hidden sm:inline-block"
+              >
+                Apply Now
+              </Link>
+            </div>
+          ) : (
+            <div className="flex items-center gap-4">
+              <Link
+                href="/login"
+                className="text-sm font-semibold text-zinc-500 hover:text-zinc-950 transition-colors hidden sm:inline-block"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/apply"
+                className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition-all hover:bg-zinc-800 hover:shadow-md active:scale-95 hidden sm:inline-block"
+              >
+                Apply Now
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </nav>

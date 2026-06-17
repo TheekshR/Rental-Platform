@@ -1,13 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export default function Footer() {
+  const pathname = usePathname();
   const currentYear = new Date().getFullYear();
+
+  // Hide public footer on Admin routes
+  if (pathname && pathname.startsWith("/admin")) {
+    return null;
+  }
 
   return (
     <footer className="bg-zinc-950 border-t border-zinc-900 text-zinc-400 py-16 px-6">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-5 gap-10 md:gap-6">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-10 md:gap-8">
         {/* Brand Column */}
         <div className="md:col-span-2 space-y-5">
           <Link href="/" className="flex items-center gap-2.5">
@@ -64,33 +71,9 @@ export default function Footer() {
         <div className="space-y-4">
           <h4 className="text-sm font-semibold text-white tracking-wider uppercase">Company</h4>
           <ul className="space-y-2.5 text-sm">
-            <li><a href="#" className="hover:text-white transition-colors">About Us</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
+            <li><Link href="/about" className="hover:text-white transition-colors">About Us</Link></li>
+            <li><Link href="/help" className="hover:text-white transition-colors">Contact & Support</Link></li>
           </ul>
-        </div>
-
-        {/* Newsletter Column */}
-        <div className="space-y-4">
-          <h4 className="text-sm font-semibold text-white tracking-wider uppercase">Stay Updated</h4>
-          <p className="text-xs text-zinc-500 leading-relaxed">
-            Subscribe to receive updates on newly listed premium properties and market reports.
-          </p>
-          <form onSubmit={(e) => e.preventDefault()} className="space-y-2">
-            <input
-              type="email"
-              placeholder="Your email address"
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition-colors"
-              required
-            />
-            <button
-              type="submit"
-              className="w-full bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-xl py-2.5 text-xs transition-colors shadow-lg shadow-amber-500/10 cursor-pointer"
-            >
-              Subscribe
-            </button>
-          </form>
         </div>
       </div>
 
