@@ -21,7 +21,7 @@ export default function Stats() {
     <section className="w-full bg-white dark:bg-zinc-950 border-b border-zinc-100 dark:border-zinc-900 py-16 px-6">
       <div className="max-w-7xl mx-auto">
         {/* Three Columns Stats Grid with dividers */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-0 divide-y md:divide-y-0 md:divide-x divide-zinc-100 dark:divide-zinc-850">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-0 divide-y md:divide-y-0 md:divide-x divide-zinc-100 dark:divide-zinc-800">
           {stats.map((stat, index) => (
             <div
               key={index}

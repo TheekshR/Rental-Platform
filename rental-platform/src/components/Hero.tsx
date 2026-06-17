@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Hero() {
+  const router = useRouter();
+  
   // States to manage the search tab and dropdown filters
   const [activeTab, setActiveTab] = useState("rent");
   const [location, setLocation] = useState("");
@@ -11,8 +14,21 @@ export default function Hero() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // Prompt search settings to the user
-    alert(`Searching for ${activeTab === "rent" ? "rentals" : "properties to buy"} in ${location || "Anywhere"} (${propertyType || "All types"}, ${priceRange || "Any price"})`);
+    
+    let query = "?";
+    if (propertyType) query += `category=${encodeURIComponent(propertyType)}&`;
+    if (location) query += `location=${encodeURIComponent(location)}&`;
+    if (priceRange) query += `priceRange=${encodeURIComponent(priceRange)}&`;
+    
+    // Trim trailing symbol
+    if (query.endsWith("&")) {
+      query = query.slice(0, -1);
+    }
+    if (query === "?") {
+      query = "";
+    }
+
+    router.push(`/listings${query}`);
   };
 
   return (
@@ -49,7 +65,7 @@ export default function Hero() {
               <button
                 type="button"
                 onClick={() => setActiveTab("rent")}
-                className={`px-4.5 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer ${
+                className={`px-4.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer ${
                   activeTab === "rent"
                     ? "bg-white text-zinc-950 shadow-sm"
                     : "text-zinc-400 hover:text-white"
@@ -60,7 +76,7 @@ export default function Hero() {
               <button
                 type="button"
                 onClick={() => setActiveTab("buy")}
-                className={`px-4.5 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer ${
+                className={`px-4.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer ${
                   activeTab === "buy"
                     ? "bg-white text-zinc-950 shadow-sm"
                     : "text-zinc-400 hover:text-white"

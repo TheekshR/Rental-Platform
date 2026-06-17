@@ -4,8 +4,8 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-// Fallback list of properties to choose from if none was selected in the URL
-const availableProperties = [
+// Fallback list of properties to choose from if database fetch fails
+const fallbackProperties = [
   { id: "1", name: "Skyline Premium Suite", price: 1850 },
   { id: "2", name: "Urban Loft Studio", price: 950 },
   { id: "3", name: "Metro Hub Headquarters", price: 3400 },
@@ -34,25 +34,86 @@ function ApplyContent() {
   const [selectedPropertyPrice, setSelectedPropertyPrice] = useState(1500);
   const [selectedPropertyName, setSelectedPropertyName] = useState("");
 
+  const [availableProperties, setAvailableProperties] = useState<typeof fallbackProperties>([]);
+  const [generatedAppId, setGeneratedAppId] = useState("");
+
   // 3. Validation Errors State
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Sync state with URL parameters if user clicked "Apply" from a listing details page
-  useEffect(() => {
-    const propertyIdParam = searchParams.get("propertyId");
-    const nameParam = searchParams.get("name");
-    const priceParam = searchParams.get("price");
+  const [user, setUser] = useState<{ fullName: string; email: string } | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
-    if (propertyIdParam && nameParam && priceParam) {
-      setSelectedPropertyId(propertyIdParam);
-      setSelectedPropertyName(nameParam);
-      setSelectedPropertyPrice(Number(priceParam));
-    } else {
-      // Default to first option in our list
-      setSelectedPropertyId(availableProperties[0].id);
-      setSelectedPropertyName(availableProperties[0].name);
-      setSelectedPropertyPrice(availableProperties[0].price);
+  // Check auth
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const res = await fetch("/api/auth/verify");
+        const data = await res.json();
+        if (data.authenticated && data.user) {
+          setUser(data.user);
+          setFullName(data.user.fullName);
+          setEmail(data.user.email);
+        } else {
+          setUser(null);
+        }
+      } catch (err) {
+        setUser(null);
+      } finally {
+        setCheckingAuth(false);
+      }
     }
+    checkAuth();
+  }, []);
+
+  // Load properties dynamically from database
+  useEffect(() => {
+    async function loadProperties() {
+      try {
+        const res = await fetch("/api/properties");
+        const data = await res.json();
+        if (data.success && data.properties && data.properties.length > 0) {
+          const mapped = data.properties.map((p: any) => ({
+            id: p._id,
+            name: p.title,
+            price: p.price
+          }));
+          setAvailableProperties(mapped);
+          syncSelection(mapped);
+        } else {
+          setAvailableProperties(fallbackProperties);
+          syncSelection(fallbackProperties);
+        }
+      } catch (err) {
+        console.log("Failed to fetch database properties for application form, using fallback", err);
+        setAvailableProperties(fallbackProperties);
+        syncSelection(fallbackProperties);
+      }
+    }
+
+    function syncSelection(list: typeof fallbackProperties) {
+      const propertyIdParam = searchParams.get("propertyId");
+      const nameParam = searchParams.get("name");
+      const priceParam = searchParams.get("price");
+
+      if (propertyIdParam) {
+        const found = list.find((p) => p.id === propertyIdParam);
+        if (found) {
+          setSelectedPropertyId(found.id);
+          setSelectedPropertyName(found.name);
+          setSelectedPropertyPrice(found.price);
+          return;
+        }
+      }
+      
+      // Default choice
+      if (list.length > 0) {
+        setSelectedPropertyId(list[0].id);
+        setSelectedPropertyName(list[0].name);
+        setSelectedPropertyPrice(list[0].price);
+      }
+    }
+
+    loadProperties();
   }, [searchParams]);
 
   // Update name and price state when dropdown changes manually
@@ -115,8 +176,8 @@ function ApplyContent() {
     setStep(step - 1);
   };
 
-  // 5. Final Form Submission
-  const handleSubmit = (e: React.FormEvent) => {
+  // 5. Final Form Submission to Database API
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const stepErrors: Record<string, string> = {};
 
@@ -141,12 +202,94 @@ function ApplyContent() {
     setErrors({});
     setLoading(true);
 
-    // Simulate database API injection call (1.5 seconds latency)
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/applications", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          fullName,
+          email,
+          employmentStatus,
+          annualIncome: Number(annualIncome),
+          moveInDate,
+          propertyId: selectedPropertyId
+        })
+      });
+
+      const data = await res.json();
       setLoading(false);
-      setIsSubmitted(true);
-    }, 1500);
+
+      if (data.success && data.application) {
+        setGeneratedAppId(data.application.applicationId);
+        setIsSubmitted(true);
+      } else {
+        setErrors({ submit: data.message || "Failed to submit application." });
+      }
+    } catch (err) {
+      console.error("Submission error:", err);
+      setLoading(false);
+      setErrors({ submit: "An error occurred while connecting to the server. Please try again." });
+    }
   };
+
+  if (checkingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-950">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
+          <p className="text-xs text-zinc-400 font-semibold tracking-wider uppercase">Checking Session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="mx-auto max-w-md px-6 pt-36 pb-16 text-center">
+        <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-8 shadow-xl space-y-6">
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/20 mb-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2.5}
+              stroke="currentColor"
+              className="h-6 w-6"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="text-xl font-extrabold text-zinc-950 dark:text-white tracking-tight">
+              Sign In Required
+            </h2>
+            <p className="text-xs text-zinc-500 max-w-xs mx-auto leading-relaxed">
+              To submit a tenancy application for Rentora properties, please create an account or sign in first.
+            </p>
+          </div>
+
+          <div className="pt-2 space-y-3">
+            <Link
+              href="/login?redirect=/apply"
+              className="block w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold rounded-2xl text-xs transition-all shadow-md shadow-amber-500/10 active:scale-95 cursor-pointer"
+            >
+              Sign In to Continue
+            </Link>
+            
+            <Link
+              href="/signup?redirect=/apply"
+              className="block w-full py-3 border border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 font-bold rounded-2xl text-xs transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800 active:scale-95 cursor-pointer"
+            >
+              Create an Account
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Render Confirmation Screen on Success
   if (isSubmitted) {
@@ -165,7 +308,7 @@ function ApplyContent() {
               Application Submitted!
             </h1>
             <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">
-              Status: <span className="text-amber-500">Under Review</span>
+              Status: <span className="text-amber-500 font-bold">Under Review</span>
             </p>
           </div>
 
@@ -192,7 +335,7 @@ function ApplyContent() {
             </div>
             <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
               <span>Application ID</span>
-              <span className="text-amber-600 font-bold uppercase">APP-{Math.floor(100000 + Math.random() * 900000)}</span>
+              <span className="text-amber-600 font-bold uppercase">{generatedAppId}</span>
             </div>
           </div>
 
@@ -239,6 +382,13 @@ function ApplyContent() {
           />
         </div>
 
+        {/* Global Submission Error */}
+        {errors.submit && (
+          <p className="mb-6 p-4 rounded-2xl text-xs font-semibold bg-red-50 text-red-500 border border-red-100">
+            ⚠️ {errors.submit}
+          </p>
+        )}
+
         {/* Wizard Step 1: Contact Info */}
         {step === 1 && (
           <div className="space-y-6">
@@ -248,14 +398,11 @@ function ApplyContent() {
               </label>
               <input
                 type="text"
-                placeholder="Enter your first and last name"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className={`w-full bg-zinc-50 focus:bg-white border focus:ring-1 focus:ring-amber-500 rounded-2xl px-4 py-3 text-sm text-zinc-900 focus:outline-none transition-all dark:bg-zinc-900 dark:text-white ${
-                  errors.fullName ? "border-red-500" : "border-zinc-200 dark:border-zinc-800"
-                }`}
+                readOnly
+                className="w-full bg-zinc-100 border border-zinc-200 rounded-2xl px-4 py-3 text-sm text-zinc-500 focus:outline-none transition-all dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-800 cursor-not-allowed"
               />
-              {errors.fullName && <p className="text-xs font-medium text-red-500">{errors.fullName}</p>}
+              <p className="text-[10px] text-zinc-400 font-medium">Locked to your verified profile name.</p>
             </div>
 
             <div className="space-y-2">
@@ -264,14 +411,11 @@ function ApplyContent() {
               </label>
               <input
                 type="email"
-                placeholder="you@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={`w-full bg-zinc-50 focus:bg-white border focus:ring-1 focus:ring-amber-500 rounded-2xl px-4 py-3 text-sm text-zinc-900 focus:outline-none transition-all dark:bg-zinc-900 dark:text-white ${
-                  errors.email ? "border-red-500" : "border-zinc-200 dark:border-zinc-800"
-                }`}
+                readOnly
+                className="w-full bg-zinc-100 border border-zinc-200 rounded-2xl px-4 py-3 text-sm text-zinc-500 focus:outline-none transition-all dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-800 cursor-not-allowed"
               />
-              {errors.email && <p className="text-xs font-medium text-red-500">{errors.email}</p>}
+              <p className="text-[10px] text-zinc-400 font-medium">Locked to your verified profile email.</p>
             </div>
 
             <button
@@ -311,7 +455,7 @@ function ApplyContent() {
                 placeholder="e.g. 65000"
                 value={annualIncome}
                 onChange={(e) => setAnnualIncome(e.target.value)}
-                className={`w-full bg-zinc-50 focus:bg-white border focus:ring-1 focus:ring-amber-500 rounded-2xl px-4 py-3 text-sm text-zinc-900 focus:outline-none transition-all dark:bg-zinc-900 dark:text-white ${
+                className={`w-full bg-zinc-50 focus:bg-white border focus:ring-1 focus:ring-amber-500 rounded-2xl px-4 py-3 text-sm text-black focus:outline-none transition-all dark:bg-zinc-900 dark:text-white dark:focus:bg-zinc-800 ${
                   errors.annualIncome ? "border-red-500" : "border-zinc-200 dark:border-zinc-800"
                 }`}
               />
@@ -368,7 +512,7 @@ function ApplyContent() {
                 type="date"
                 value={moveInDate}
                 onChange={(e) => setMoveInDate(e.target.value)}
-                className={`w-full bg-zinc-50 focus:bg-white border focus:ring-1 focus:ring-amber-500 rounded-2xl px-4 py-3 text-sm text-zinc-900 focus:outline-none transition-all dark:bg-zinc-900 dark:text-white cursor-pointer ${
+                className={`w-full bg-zinc-50 focus:bg-white border focus:ring-1 focus:ring-amber-500 rounded-2xl px-4 py-3 text-sm text-black focus:outline-none transition-all dark:bg-zinc-900 dark:text-white dark:focus:bg-zinc-800 cursor-pointer ${
                   errors.moveInDate ? "border-red-500" : "border-zinc-200 dark:border-zinc-800"
                 }`}
               />
