@@ -60,7 +60,7 @@ export default function AboutUs() {
                   </svg>
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-zinc-900 dark:text-white">Vetted Landlords</h4>
+                  <h4 className="text-sm font-bold text-zinc-900 dark:text-white">Landlords</h4>
                   <p className="text-xs text-zinc-500 dark:text-zinc-500 leading-normal mt-0.5">Every landlord is verified through legal and background checks.</p>
                 </div>
               </div>
