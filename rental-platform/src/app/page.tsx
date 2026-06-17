@@ -1,6 +1,7 @@
 import Hero from "@/components/Hero";
 import Stats from "@/components/Stats";
 import ZoneHighlights from "@/components/ZoneHighlights";
+import AboutUs from "@/components/AboutUs";
 
 export default function Home() {
   return (
@@ -8,6 +9,7 @@ export default function Home() {
       <Hero />
       <Stats />
       <ZoneHighlights />
+      <AboutUs />
     </div>
   );
 }

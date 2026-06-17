@@ -26,16 +26,40 @@ export default function HelpPage() {
 
     setLoading(true);
 
-    // Simulate sending the inquiry logs to backend pipeline
-    setTimeout(() => {
-      setLoading(false);
-      setSubmitted(true);
-      // Reset form fields
-      setFullName("");
-      setEmail("");
-      setInquiryType("Lease Questions");
-      setMessage("");
-    }, 1200);
+    async function sendInquiry() {
+      try {
+        const res = await fetch("/api/inquiries", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fullName,
+            email,
+            inquiryType,
+            message,
+          }),
+        });
+
+        const data = await res.json();
+        setLoading(false);
+
+        if (data.success) {
+          setSubmitted(true);
+          setFullName("");
+          setEmail("");
+          setInquiryType("Lease Questions");
+          setMessage("");
+        } else {
+          setError(data.message || "Failed to submit inquiry.");
+        }
+      } catch (err) {
+        console.error("Inquiry logging failed:", err);
+        setLoading(false);
+        setError("Connection failed. Please try again.");
+      }
+    }
+    sendInquiry();
   };
 
   // Mock FAQ data to make the Help Center look comprehensive
@@ -161,7 +185,7 @@ export default function HelpPage() {
                     placeholder="Enter your name"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="w-full bg-zinc-50 focus:bg-white border border-zinc-200 dark:border-zinc-800 rounded-2xl px-4 py-3 text-sm text-zinc-900 dark:bg-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all"
+                    className="w-full bg-zinc-50 focus:bg-white border border-zinc-200 dark:border-zinc-800 rounded-2xl px-4 py-3 text-sm text-black dark:bg-zinc-900 dark:text-white dark:focus:bg-zinc-800 focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all"
                     required
                   />
                 </div>
@@ -176,7 +200,7 @@ export default function HelpPage() {
                     placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-zinc-50 focus:bg-white border border-zinc-200 dark:border-zinc-800 rounded-2xl px-4 py-3 text-sm text-zinc-900 dark:bg-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all"
+                    className="w-full bg-zinc-50 focus:bg-white border border-zinc-200 dark:border-zinc-800 rounded-2xl px-4 py-3 text-sm text-black dark:bg-zinc-900 dark:text-white dark:focus:bg-zinc-800 focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all"
                     required
                   />
                 </div>
@@ -209,7 +233,7 @@ export default function HelpPage() {
                     placeholder="Type your message details here..."
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    className="w-full bg-zinc-50 focus:bg-white border border-zinc-200 dark:border-zinc-800 rounded-2xl px-4 py-3 text-sm text-zinc-900 dark:bg-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all resize-none"
+                    className="w-full bg-zinc-50 focus:bg-white border border-zinc-200 dark:border-zinc-800 rounded-2xl px-4 py-3 text-sm text-black dark:bg-zinc-900 dark:text-white dark:focus:bg-zinc-800 focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all resize-none"
                     required
                   />
                 </div>

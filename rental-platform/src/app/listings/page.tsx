@@ -11,6 +11,7 @@ const fallbackProperties = [
     title: "Skyline Premium Suite",
     category: "Apartment",
     price: 1850,
+    location: "Downtown, Metro City",
     available: true,
     availableDays: 0,
     beds: 2,
@@ -24,6 +25,7 @@ const fallbackProperties = [
     title: "Urban Loft Studio",
     category: "Studio",
     price: 950,
+    location: "Brooklyn, New York",
     available: true,
     availableDays: 0,
     beds: 1,
@@ -37,6 +39,7 @@ const fallbackProperties = [
     title: "Metro Hub Headquarters",
     category: "Office",
     price: 3400,
+    location: "Downtown, Chicago",
     available: false,
     availableDays: 14,
     beds: 0,
@@ -50,6 +53,7 @@ const fallbackProperties = [
     title: "Oakwood Heights Villa",
     category: "Villa",
     price: 4900,
+    location: "Beverly Hills, California",
     available: true,
     availableDays: 0,
     beds: 4,
@@ -63,6 +67,7 @@ const fallbackProperties = [
     title: "Waterfront Vista Apartment",
     category: "Apartment",
     price: 2200,
+    location: "Riverfront, Seattle",
     available: true,
     availableDays: 0,
     beds: 3,
@@ -76,6 +81,7 @@ const fallbackProperties = [
     title: "Silicon Square Tech Suite",
     category: "Office",
     price: 2800,
+    location: "Silicon Valley, California",
     available: true,
     availableDays: 0,
     beds: 0,
@@ -92,16 +98,23 @@ function ListingsContent() {
   // States to hold the current selected filters
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [properties, setProperties] = useState(fallbackProperties);
 
-  // Sync state with URL category parameter if present (e.g. from homepage category click)
+  // Sync state with URL category and search parameters
   useEffect(() => {
     const categoryParam = searchParams.get("category");
     if (categoryParam) {
-      // Capitalize to match "Apartment", "Studio", etc.
       setSelectedCategory(categoryParam);
     } else {
       setSelectedCategory("All");
+    }
+
+    const locationParam = searchParams.get("location");
+    if (locationParam) {
+      setSearchQuery(locationParam);
+    } else {
+      setSearchQuery("");
     }
   }, [searchParams]);
 
@@ -111,27 +124,22 @@ function ListingsContent() {
       try {
         const res = await fetch("/api/properties");
         const data = await res.json();
-        // If API fetched successfully, merge the data with our fallback designs to get rich layout images
         if (data.success && data.properties && data.properties.length > 0) {
-          const apiMerged = data.properties.map((prop: any, index: number) => {
-            const fallback = fallbackProperties[index % fallbackProperties.length];
-            return {
-              id: prop._id || String(index + 1),
-              title: prop.title,
-              category: prop.category,
-              price: prop.price,
-              available: prop.available ?? true,
-              availableDays: prop.available ? 0 : 7,
-              beds: fallback.beds,
-              baths: fallback.baths,
-              sqft: fallback.sqft,
-              image: prop.category === "Villa" ? "/luxury-villas.png" :
-                     prop.category === "Studio" ? "/shared-studios.png" :
-                     prop.category === "Office" ? "/executive-offices.png" : "/urban-apartments.png",
-              description: fallback.description
-            };
-          });
-          setProperties(apiMerged);
+          const apiMapped = data.properties.map((prop: any) => ({
+            id: prop._id,
+            title: prop.title,
+            category: prop.category,
+            price: prop.price,
+            location: prop.location || "Metro City",
+            available: prop.available ?? true,
+            availableDays: prop.availableDays ?? (prop.available ? 0 : 7),
+            beds: prop.beds ?? 0,
+            baths: prop.baths ?? 0,
+            sqft: prop.sqft ?? 0,
+            image: prop.image || "/urban-apartments.png",
+            description: prop.description || ""
+          }));
+          setProperties(apiMapped);
         }
       } catch (err) {
         console.log("Using local mock properties instead", err);
@@ -140,7 +148,9 @@ function ListingsContent() {
     loadProperties();
   }, []);
 
-  // Filter listings based on active pills
+  const priceRangeQuery = searchParams.get("priceRange") || "";
+
+  // Filter listings based on active pills and queries
   const filteredProperties = properties.filter((prop) => {
     // 1. Category Filter
     const categoryMatch = selectedCategory === "All" || prop.category.toLowerCase() === selectedCategory.toLowerCase();
@@ -148,7 +158,25 @@ function ListingsContent() {
     // 2. Availability Filter
     const availabilityMatch = !showOnlyAvailable || prop.available;
 
-    return categoryMatch && availabilityMatch;
+    // 3. Search Query Filter (Matches title, location, or description)
+    const matchesSearch = !searchQuery || 
+      (prop as any).location?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      prop.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      prop.description.toLowerCase().includes(searchQuery.toLowerCase());
+
+    // 4. Price Filter
+    let matchesPrice = true;
+    if (priceRangeQuery === "0-1000") {
+      matchesPrice = prop.price < 1000;
+    } else if (priceRangeQuery === "1000-2500") {
+      matchesPrice = prop.price >= 1000 && prop.price <= 2500;
+    } else if (priceRangeQuery === "2500-5000") {
+      matchesPrice = prop.price >= 2500 && prop.price <= 5000;
+    } else if (priceRangeQuery === "5000+") {
+      matchesPrice = prop.price >= 5005;
+    }
+
+    return categoryMatch && availabilityMatch && matchesSearch && matchesPrice;
   });
 
   // Unique list of categories for filter pills
@@ -174,7 +202,7 @@ function ListingsContent() {
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-full text-xs font-semibold tracking-wide border transition-all cursor-pointer ${
+              className={`px-4 py-2 rounded-xl text-xs font-semibold tracking-wide border transition-all cursor-pointer ${
                 selectedCategory.toLowerCase() === cat.toLowerCase()
                   ? "bg-amber-500 border-amber-500 text-white shadow-sm"
                   : "bg-white border-zinc-200 text-zinc-600 hover:text-zinc-950 dark:bg-zinc-950 dark:border-zinc-800 dark:text-zinc-400 dark:hover:text-white"
@@ -183,6 +211,32 @@ function ListingsContent() {
               {cat}s
             </button>
           ))}
+        </div>
+
+        {/* Search Bar */}
+        <div className="relative flex-1 max-w-xs sm:max-w-md w-full">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-405 dark:text-zinc-500">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.603 10.603z" />
+            </svg>
+          </div>
+          <input
+            type="text"
+            placeholder="Search properties by title, location..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-white border border-zinc-200 dark:bg-zinc-950 dark:border-zinc-800 rounded-xl pl-10 pr-10 py-2.5 text-xs font-semibold text-zinc-805 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-amber-500 dark:focus:border-amber-500 transition-colors shadow-sm"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-450 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors cursor-pointer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Availability Toggle */}
@@ -207,8 +261,9 @@ function ListingsContent() {
             onClick={() => {
               setSelectedCategory("All");
               setShowOnlyAvailable(false);
+              setSearchQuery("");
             }}
-            className="mt-4 px-4 py-2 bg-zinc-900 text-white rounded-full text-xs font-semibold cursor-pointer hover:bg-zinc-800"
+            className="mt-4 px-4 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold cursor-pointer hover:bg-zinc-800"
           >
             Clear Filters
           </button>
@@ -228,7 +283,7 @@ function ListingsContent() {
                   className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
                 <div className="absolute top-4 left-4">
-                  <span className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white ${
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white ${
                     prop.available
                       ? "bg-emerald-600"
                       : "bg-amber-600"
@@ -254,6 +309,13 @@ function ListingsContent() {
                   <h3 className="text-lg font-bold text-zinc-950 dark:text-white group-hover:text-amber-500 transition-colors">
                     {prop.title}
                   </h3>
+                  <p className="text-[11px] text-zinc-400 dark:text-zinc-550 flex items-center gap-1 font-semibold">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 flex-shrink-0 text-zinc-400">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                    </svg>
+                    {(prop as any).location || "Metro City"}
+                  </p>
                 </div>
 
                 <p className="text-xs text-zinc-500 leading-relaxed line-clamp-2">

@@ -9,7 +9,7 @@ export default function ZoneHighlights() {
       description: "Modern high-rise flats in downtown city hubs.",
       image: "/urban-apartments.png",
       count: "18 listings",
-      color: "from-blue-500 to-orange-600",
+      color: "from-amber-500 to-orange-600",
     },
     {
       title: "Shared Studios",
@@ -17,7 +17,7 @@ export default function ZoneHighlights() {
       description: "Cozy spaces with shared amenities for creators.",
       image: "/shared-studios.png",
       count: "9 listings",
-      color: "from-purple-500 to-pink-600",
+      color: "from-amber-500 to-orange-600",
     },
     {
       title: "Executive Offices",
@@ -33,7 +33,7 @@ export default function ZoneHighlights() {
       description: "High-end villas with pools and ultimate privacy.",
       image: "/luxury-villas.png",
       count: "6 listings",
-      color: "from-emerald-500 to-teal-600",
+      color: "from-amber-500 to-orange-600",
     },
   ];
 
@@ -42,7 +42,7 @@ export default function ZoneHighlights() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <h2 className="text-5xl sm:text-6xl font-extrabold mt-4 text-zinc-950 dark:text-white tracking-tight">
+          <h2 className="text-3.5xl sm:text-5xl lg:text-6xl font-extrabold mt-4 text-zinc-950 dark:text-white tracking-tight">
             Curated Property Zoning
           </h2>
           <p className="text-zinc-500 mt-4 text-md sm:text-base">
@@ -56,7 +56,7 @@ export default function ZoneHighlights() {
             <Link
               key={index}
               href={`/listings?category=${zone.category}`}
-              className="group relative flex h-96 flex-col justify-end overflow-hidden rounded-3xl bg-zinc-900 p-6 shadow-lg transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:shadow-amber-500/10 cursor-pointer"
+              className="group relative flex h-96 sm:h-[32rem] flex-col justify-end overflow-hidden rounded-3xl bg-zinc-900 p-6 shadow-lg transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:shadow-amber-500/10 cursor-pointer"
             >
               {/* Card Background Image */}
               <div

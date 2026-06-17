@@ -1,0 +1,50 @@
+import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import jwt from "jsonwebtoken";
+import connectDB from "@/lib/mongodb";
+import User from "@/models/User";
+
+const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret";
+
+// GET: Verify customer token and return profile data
+export async function GET() {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("user_token")?.value;
+
+    if (!token) {
+      return NextResponse.json({ authenticated: false, message: "Token missing" }, { status: 401 });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    
+    await connectDB();
+    const user = await User.findById(decoded.id).select("-password");
+    if (!user) {
+      return NextResponse.json({ authenticated: false, message: "User not found" }, { status: 401 });
+    }
+
+    return NextResponse.json({
+      authenticated: true,
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone || "",
+      },
+    });
+  } catch (error) {
+    return NextResponse.json({ authenticated: false, message: "Invalid or expired token" }, { status: 401 });
+  }
+}
+
+// POST: Logout customer (clear cookie)
+export async function POST() {
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete("user_token");
+    return NextResponse.json({ success: true, message: "Logged out successfully" });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
