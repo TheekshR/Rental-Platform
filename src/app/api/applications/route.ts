@@ -4,6 +4,9 @@ import jwt from "jsonwebtoken";
 import connectDB from "@/lib/mongodb";
 import Application from "@/models/Application";
 import Property from "@/models/Property";
+import Notification from "@/models/Notification";
+import AdminNotification from "@/models/AdminNotification";
+import { verifyAdminSession } from "@/lib/adminAuth";
 
 const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret";
 
@@ -12,21 +15,11 @@ export async function GET() {
   try {
     await connectDB();
 
-    // Verify Admin JWT
-    const cookieStore = await cookies();
-    const token = cookieStore.get("admin_token")?.value;
-    if (!token) {
+    // Verify Admin session
+    const admin = await verifyAdminSession();
+    if (!admin) {
       return NextResponse.json(
-        { success: false, message: "Unauthorized. Admin token missing." },
-        { status: 401 }
-      );
-    }
-
-    try {
-      jwt.verify(token, JWT_SECRET);
-    } catch (err) {
-      return NextResponse.json(
-        { success: false, message: "Unauthorized. Invalid token." },
+        { success: false, message: "Unauthorized. Admin session missing or invalid." },
         { status: 401 }
       );
     }
@@ -131,6 +124,33 @@ export async function POST(req: NextRequest) {
       applicationId: appId,
       userId: decoded.id,
     });
+
+    // 7. Create a notification for the user
+    try {
+      await Notification.create({
+        userId: decoded.id,
+        email: email.toLowerCase(),
+        title: "Application Submitted",
+        message: `Your tenancy application for "${property.title}" (ID: ${appId}) was submitted successfully and is currently under review.`,
+        type: "info",
+        link: "/profile",
+      });
+    } catch (notifErr) {
+      console.error("Failed to create notification on application submission:", notifErr);
+      // Don't fail the submission if notifications fail
+    }
+
+    // Create notification for admin
+    try {
+      await AdminNotification.create({
+        title: "New Tenancy Application",
+        message: `A new application (${appId}) was submitted by ${fullName} for property "${property.title}".`,
+        type: "info",
+        link: "/admin/dashboard",
+      });
+    } catch (adminNotifErr) {
+      console.error("Failed to create admin notification on submission:", adminNotifErr);
+    }
 
     return NextResponse.json({
       success: true,

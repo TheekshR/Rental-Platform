@@ -3,6 +3,7 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import PageTransition from "@/components/PageTransition";
 
 const poppins = Poppins({
   weight: ["300", "400", "500", "600", "700", "800"],
@@ -29,7 +30,9 @@ export default function RootLayout({
         <Navbar />
 
         <main className="min-h-screen">
-          {children}
+          <PageTransition>
+            {children}
+          </PageTransition>
         </main>
 
         <Footer />

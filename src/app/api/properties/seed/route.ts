@@ -184,6 +184,12 @@ export async function GET() {
     const seededAdmin = await Admin.create({
       username: "admin@rentora.com",
       password: hashedPassword,
+      role: "super_admin",
+      permissions: {
+        manageProperties: true,
+        manageApplications: true,
+        viewInquiries: true,
+      },
     });
 
     return NextResponse.json({

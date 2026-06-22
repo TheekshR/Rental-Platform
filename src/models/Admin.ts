@@ -11,6 +11,25 @@ const AdminSchema = new Schema(
       type: String,
       required: true,
     },
+    role: {
+      type: String,
+      enum: ["super_admin", "manager", "team_member"],
+      default: "team_member",
+    },
+    permissions: {
+      manageProperties: {
+        type: Boolean,
+        default: false,
+      },
+      manageApplications: {
+        type: Boolean,
+        default: false,
+      },
+      viewInquiries: {
+        type: Boolean,
+        default: true,
+      },
+    },
   },
   {
     timestamps: true,
