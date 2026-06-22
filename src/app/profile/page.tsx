@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Popup from "@/components/Popup";
 
 interface UserProfile {
   id: string;
@@ -113,6 +114,13 @@ export default function ProfilePage() {
   const [updateError, setUpdateError] = useState("");
   const [updateSuccess, setUpdateSuccess] = useState("");
 
+  // Custom Popup States
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [popupType, setPopupType] = useState<"success" | "warning" | "confirm">("success");
+  const [popupTitle, setPopupTitle] = useState("");
+  const [popupMessage, setPopupMessage] = useState("");
+  const [popupOnConfirm, setPopupOnConfirm] = useState<() => void>(() => {});
+
   // Applications State
   const [applications, setApplications] = useState<ApplicationData[]>([]);
   const [appsLoading, setAppsLoading] = useState(true);
@@ -161,18 +169,25 @@ export default function ProfilePage() {
     }
   }
 
-  // 3. Handle Logout
-  const handleLogout = async () => {
-    try {
-      const res = await fetch("/api/auth/verify", { method: "POST" });
-      const data = await res.json();
-      if (data.success) {
-        router.refresh();
-        router.push("/");
+  // 3. Handle Logout Trigger Confirmation
+  const triggerLogoutConfirm = () => {
+    setPopupType("confirm");
+    setPopupTitle("Sign Out");
+    setPopupMessage("Are you sure you want to sign out of your Rentora account?");
+    setPopupOnConfirm(() => async () => {
+      setPopupOpen(false);
+      try {
+        const res = await fetch("/api/auth/verify", { method: "POST" });
+        const data = await res.json();
+        if (data.success) {
+          router.refresh();
+          router.push("/");
+        }
+      } catch (err) {
+        console.error("Logout failed:", err);
       }
-    } catch (err) {
-      console.error("Logout failed:", err);
-    }
+    });
+    setPopupOpen(true);
   };
 
   // 4. Handle Profile Update
@@ -201,8 +216,13 @@ export default function ProfilePage() {
       if (data.success && data.user) {
         setUser(data.user);
         setIsEditing(false);
-        setUpdateSuccess("Profile details updated successfully!");
-        setTimeout(() => setUpdateSuccess(""), 4000);
+        setPopupType("success");
+        setPopupTitle("Profile Updated");
+        setPopupMessage("Your account profile details have been saved successfully.");
+        setPopupOnConfirm(() => () => {
+          setPopupOpen(false);
+        });
+        setPopupOpen(true);
         router.refresh();
       } else {
         setUpdateError(data.message || "Failed to update profile details.");
@@ -233,14 +253,14 @@ export default function ProfilePage() {
         );
       case "Rejected":
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 dark:bg-rose-950/30 px-3 py-1.5 text-xs font-bold text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 shadow-sm shadow-rose-50 dark:shadow-none">
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-700 dark:text-rose-400">
             <TimesCircleIcon className="text-rose-500 dark:text-rose-400 h-3.5 w-3.5" />
             Rejected
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 dark:bg-amber-950/30 px-3 py-1.5 text-xs font-bold text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50 shadow-sm shadow-amber-50 dark:shadow-none">
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-400">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 dark:bg-amber-500 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500 dark:bg-amber-400"></span>
@@ -356,7 +376,7 @@ export default function ProfilePage() {
                   </button>
 
                   <button
-                    onClick={handleLogout}
+                    onClick={triggerLogoutConfirm}
                     className="w-full inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 text-zinc-700 dark:text-zinc-300 font-bold py-3.5 text-xs transition-colors cursor-pointer"
                   >
                     <SignOutIcon className="h-3.5 w-3.5 text-zinc-450 dark:text-zinc-500" /> Sign Out of Account
@@ -544,6 +564,16 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+      <Popup
+        isOpen={popupOpen}
+        type={popupType}
+        title={popupTitle}
+        message={popupMessage}
+        onConfirm={popupOnConfirm}
+        onCancel={() => setPopupOpen(false)}
+        confirmText={popupType === "confirm" ? "Yes, Sign Out" : "Okay"}
+        cancelText="Cancel"
+      />
     </div>
   );
 }

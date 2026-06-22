@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import connectDB from "@/lib/mongodb";
 import Application from "@/models/Application";
+import Notification from "@/models/Notification";
+import { verifyAdminSession } from "@/lib/adminAuth";
 
 const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret";
 
@@ -15,22 +17,19 @@ export async function PATCH(
     await connectDB();
     const { id } = await params;
 
-    // Verify Admin JWT
-    const cookieStore = await cookies();
-    const token = cookieStore.get("admin_token")?.value;
-    if (!token) {
+    // Verify Admin session and permissions
+    const admin = await verifyAdminSession();
+    if (!admin) {
       return NextResponse.json(
-        { success: false, message: "Unauthorized. Admin token missing." },
+        { success: false, message: "Unauthorized. Admin session missing or invalid." },
         { status: 401 }
       );
     }
 
-    try {
-      jwt.verify(token, JWT_SECRET);
-    } catch (err) {
+    if (admin.role !== "super_admin" && !admin.permissions?.manageApplications) {
       return NextResponse.json(
-        { success: false, message: "Unauthorized. Invalid token." },
-        { status: 401 }
+        { success: false, message: "Forbidden. You do not have permission to review applications." },
+        { status: 403 }
       );
     }
 
@@ -55,6 +54,34 @@ export async function PATCH(
         { success: false, message: "Application not found." },
         { status: 404 }
       );
+    }
+
+    // Create notification for status update
+    try {
+      let notifType: "info" | "success" | "warning" | "danger" = "info";
+      let notifTitle = "Application Update";
+      let notifMessage = `Your tenancy application for "${updatedApplication.propertyName}" (ID: ${updatedApplication.applicationId}) is now under review.`;
+
+      if (status === "Approved") {
+        notifType = "success";
+        notifTitle = "Application Approved!";
+        notifMessage = `Congratulations! Your tenancy application for "${updatedApplication.propertyName}" (ID: ${updatedApplication.applicationId}) has been approved.`;
+      } else if (status === "Rejected") {
+        notifType = "warning";
+        notifTitle = "Application Update";
+        notifMessage = `Your tenancy application for "${updatedApplication.propertyName}" (ID: ${updatedApplication.applicationId}) was not approved. Please contact our support team for feedback.`;
+      }
+
+      await Notification.create({
+        userId: updatedApplication.userId,
+        email: updatedApplication.email.toLowerCase(),
+        title: notifTitle,
+        message: notifMessage,
+        type: notifType,
+        link: "/profile",
+      });
+    } catch (notifErr) {
+      console.error("Failed to create notification on application status patch:", notifErr);
     }
 
     return NextResponse.json({

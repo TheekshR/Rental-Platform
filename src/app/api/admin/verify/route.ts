@@ -4,20 +4,22 @@ import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret";
 
+import { verifyAdminSession } from "@/lib/adminAuth";
+
 // GET: Verify admin token
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("admin_token")?.value;
+    const admin = await verifyAdminSession();
 
-    if (!token) {
-      return NextResponse.json({ authenticated: false, message: "Token missing" }, { status: 401 });
+    if (!admin) {
+      return NextResponse.json({ authenticated: false, message: "Unauthorized or invalid session" }, { status: 401 });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
     return NextResponse.json({
       authenticated: true,
-      username: decoded.username,
+      username: admin.username,
+      role: admin.role,
+      permissions: admin.permissions,
     });
   } catch (error) {
     return NextResponse.json({ authenticated: false, message: "Invalid or expired token" }, { status: 401 });

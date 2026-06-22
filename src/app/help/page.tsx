@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Popup from "@/components/Popup";
 
 export default function HelpPage() {
   // 1. Form States
@@ -13,14 +14,23 @@ export default function HelpPage() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
 
+  // Custom Popup States
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [popupType, setPopupType] = useState<"success" | "warning" | "confirm">("success");
+  const [popupTitle, setPopupTitle] = useState("");
+  const [popupMessage, setPopupMessage] = useState("");
+
   // 2. Form submission handler
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    // Simple validations
+    // Simple validations using Custom Popup
     if (!fullName.trim() || !email.trim() || !message.trim()) {
-      setError("Please fill in all the required fields.");
+      setPopupType("warning");
+      setPopupTitle("Missing Fields");
+      setPopupMessage("Please fill in all the required fields before submitting.");
+      setPopupOpen(true);
       return;
     }
 
@@ -45,18 +55,28 @@ export default function HelpPage() {
         setLoading(false);
 
         if (data.success) {
+          setPopupType("success");
+          setPopupTitle("Inquiry Logged");
+          setPopupMessage("Thank you! Your support inquiry has been logged successfully.");
+          setPopupOpen(true);
           setSubmitted(true);
           setFullName("");
           setEmail("");
           setInquiryType("Lease Questions");
           setMessage("");
         } else {
-          setError(data.message || "Failed to submit inquiry.");
+          setPopupType("warning");
+          setPopupTitle("Submission Failed");
+          setPopupMessage(data.message || "Failed to submit inquiry.");
+          setPopupOpen(true);
         }
       } catch (err) {
         console.error("Inquiry logging failed:", err);
         setLoading(false);
-        setError("Connection failed. Please try again.");
+        setPopupType("warning");
+        setPopupTitle("Connection Error");
+        setPopupMessage("Failed to connect to the server. Please check your connection and try again.");
+        setPopupOpen(true);
       }
     }
     sendInquiry();
@@ -258,6 +278,13 @@ export default function HelpPage() {
           </div>
         </div>
       </div>
+      <Popup
+        isOpen={popupOpen}
+        type={popupType}
+        title={popupTitle}
+        message={popupMessage}
+        onConfirm={() => setPopupOpen(false)}
+      />
     </div>
   );
 }

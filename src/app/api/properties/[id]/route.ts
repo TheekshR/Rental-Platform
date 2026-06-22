@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import connectDB from "@/lib/mongodb";
 import Property from "@/models/Property";
+import { verifyAdminSession } from "@/lib/adminAuth";
 
 const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret";
 
@@ -46,22 +47,19 @@ export async function PUT(
     await connectDB();
     const { id } = await params;
 
-    // Verify Admin JWT
-    const cookieStore = await cookies();
-    const token = cookieStore.get("admin_token")?.value;
-    if (!token) {
+    // Verify Admin session and permissions
+    const admin = await verifyAdminSession();
+    if (!admin) {
       return NextResponse.json(
-        { success: false, message: "Unauthorized. Admin token missing." },
+        { success: false, message: "Unauthorized. Admin session missing or invalid." },
         { status: 401 }
       );
     }
 
-    try {
-      jwt.verify(token, JWT_SECRET);
-    } catch (err) {
+    if (admin.role !== "super_admin" && !admin.permissions?.manageProperties) {
       return NextResponse.json(
-        { success: false, message: "Unauthorized. Invalid token." },
-        { status: 401 }
+        { success: false, message: "Forbidden. You do not have permission to update listings." },
+        { status: 403 }
       );
     }
 
@@ -103,22 +101,19 @@ export async function DELETE(
     await connectDB();
     const { id } = await params;
 
-    // Verify Admin JWT
-    const cookieStore = await cookies();
-    const token = cookieStore.get("admin_token")?.value;
-    if (!token) {
+    // Verify Admin session and permissions
+    const admin = await verifyAdminSession();
+    if (!admin) {
       return NextResponse.json(
-        { success: false, message: "Unauthorized. Admin token missing." },
+        { success: false, message: "Unauthorized. Admin session missing or invalid." },
         { status: 401 }
       );
     }
 
-    try {
-      jwt.verify(token, JWT_SECRET);
-    } catch (err) {
+    if (admin.role !== "super_admin" && !admin.permissions?.manageProperties) {
       return NextResponse.json(
-        { success: false, message: "Unauthorized. Invalid token." },
-        { status: 401 }
+        { success: false, message: "Forbidden. You do not have permission to delete listings." },
+        { status: 403 }
       );
     }
 
