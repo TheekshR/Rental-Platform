@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Popup from "@/components/Popup";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 interface UserProfile {
   id: string;
@@ -273,11 +274,8 @@ export default function ProfilePage() {
 
   if (checkingAuth) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-950">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
-          <p className="text-xs text-zinc-400 dark:text-zinc-500 font-semibold tracking-wider uppercase">Loading Profile...</p>
-        </div>
+      <div className="min-h-[70vh] flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 pt-20">
+        <LoadingSpinner message="Loading Profile..." />
       </div>
     );
   }

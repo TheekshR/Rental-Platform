@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 // Predefined listings data (simulating a database fallback)
 const fallbackProperties = [
@@ -100,6 +101,7 @@ function ListingsContent() {
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [properties, setProperties] = useState(fallbackProperties);
+  const [loading, setLoading] = useState(true);
 
   // Sync state with URL category and search parameters
   useEffect(() => {
@@ -121,6 +123,8 @@ function ListingsContent() {
   // Attempt to fetch listings from local DB API, falling back to mock listings if it fails
   useEffect(() => {
     async function loadProperties() {
+      setLoading(true);
+      const startTime = Date.now();
       try {
         const res = await fetch("/api/properties");
         const data = await res.json();
@@ -143,6 +147,12 @@ function ListingsContent() {
         }
       } catch (err) {
         console.log("Using local mock properties instead", err);
+      } finally {
+        const elapsedTime = Date.now() - startTime;
+        const remainingTime = Math.max(0, 600 - elapsedTime);
+        setTimeout(() => {
+          setLoading(false);
+        }, remainingTime);
       }
     }
     loadProperties();
@@ -254,7 +264,9 @@ function ListingsContent() {
       </div>
 
       {/* Property Inventory Grid */}
-      {filteredProperties.length === 0 ? (
+      {loading ? (
+        <LoadingSpinner message="Fetching rental listings..." />
+      ) : filteredProperties.length === 0 ? (
         <div className="text-center py-20 bg-zinc-50 dark:bg-zinc-900/10 rounded-3xl border border-dashed border-zinc-200 dark:border-zinc-800">
           <p className="text-zinc-500 text-sm">No properties found matching your filter selection.</p>
           <button
