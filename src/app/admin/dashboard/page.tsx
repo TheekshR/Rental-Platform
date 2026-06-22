@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Popup from "@/components/Popup";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 interface Application {
   _id: string;
@@ -149,6 +150,7 @@ export default function AdminDashboardPage() {
   // 1. Verify Admin Session & Load all data
   useEffect(() => {
     async function checkAndLoad() {
+      const startTime = Date.now();
       try {
         const verifyRes = await fetch("/api/admin/verify");
         const verifyData = await verifyRes.json();
@@ -178,7 +180,11 @@ export default function AdminDashboardPage() {
           await Promise.all([fetchTeam(), fetchUsers()]);
         }
 
-        setLoading(false);
+        const elapsedTime = Date.now() - startTime;
+        const remainingTime = Math.max(0, 600 - elapsedTime);
+        setTimeout(() => {
+          setLoading(false);
+        }, remainingTime);
       } catch (err) {
         console.error("Dashboard mount error:", err);
         router.push("/admin");
@@ -543,12 +549,7 @@ export default function AdminDashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 text-zinc-900">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
-          <p className="text-xs text-zinc-450 font-semibold tracking-wider uppercase">Loading Workspace Data...</p>
-        </div>
-      </div>
+      <LoadingSpinner message="Loading Workspace Data..." fullscreen={true} />
     );
   }
 

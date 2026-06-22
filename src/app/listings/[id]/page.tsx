@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 // Mock database matching the directory listings (used as fallback)
 const propertiesDatabase = [
@@ -176,6 +177,7 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
 
   const [property, setProperty] = useState<typeof propertiesDatabase[0] | null>(null);
   const [activeTab, setActiveTab] = useState("dimensions"); // tabs: dimensions, utilities, policies
+  const [loading, setLoading] = useState(true);
 
   // Upfront Moving Cost Calculator States
   const [depositMultiplier, setDepositMultiplier] = useState(1); // 1x, 1.5x, 2x
@@ -185,12 +187,15 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
 
   useEffect(() => {
     async function loadProperty() {
+      setLoading(true);
+      const startTime = Date.now();
+      let fetchedProperty = null;
       try {
         const res = await fetch(`/api/properties/${propertyId}`);
         const data = await res.json();
         if (data.success && data.property) {
           const prop = data.property;
-          setProperty({
+          fetchedProperty = {
             id: prop._id,
             title: prop.title,
             category: prop.category,
@@ -215,21 +220,39 @@ export default function PropertyDetailsPage({ params }: { params: Promise<{ id: 
               "Water: Fixed rate $30/mo"
             ],
             petPolicy: prop.petPolicy || "Pets allowed under general terms."
-          });
-          return;
+          };
         }
       } catch (err) {
         console.log("Failed to fetch property details, trying fallback", err);
       }
 
-      // Try local fallback
-      const found = propertiesDatabase.find((p) => p.id === propertyId);
-      if (found) {
-        setProperty(found);
+      if (fetchedProperty) {
+        setProperty(fetchedProperty);
+      } else {
+        // Try local fallback
+        const found = propertiesDatabase.find((p) => p.id === propertyId);
+        if (found) {
+          setProperty(found);
+        }
       }
+
+      // Enforce a minimum 600ms loading delay for animation smoothness
+      const elapsedTime = Date.now() - startTime;
+      const remainingTime = Math.max(0, 600 - elapsedTime);
+      setTimeout(() => {
+        setLoading(false);
+      }, remainingTime);
     }
     loadProperty();
   }, [propertyId]);
+
+  if (loading) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 pt-20">
+        <LoadingSpinner message="Loading property details..." />
+      </div>
+    );
+  }
 
   if (!property) {
     return (
